@@ -82,8 +82,19 @@ document.getElementById("lookupBtn").addEventListener("click", async () => {
       <div><b>Nearest station:</b> ${s.name} (${s.river || "-"}), ${s.distance_km} km away
       &mdash; <a href="${s.url}" target="_blank">station ${s.id}</a></div>
       <div><b>Station catchment area:</b> ${s.catchment_area} km2</div>
-      <div><b>FEH grid reference:</b> ${data.easting} ${data.northing}</div>
+      <div style="margin-top: 6px;">
+        <b>FEH grid reference:</b> ${data.easting} ${data.northing}
+        <button class="secondary" id="copyGridRefBtn" style="margin-top: 0; padding: 4px 10px; font-size: 13px;">Copy coordinates for FEH site</button>
+        <a href="https://fehweb.ceh.ac.uk/Map" target="_blank" style="margin-left: 8px; font-size: 13px;">Open FEH site &rarr;</a>
+      </div>
     `;
+    document.getElementById("copyGridRefBtn").addEventListener("click", () => {
+      navigator.clipboard.writeText(`${data.easting} ${data.northing}`);
+      const btn = document.getElementById("copyGridRefBtn");
+      const original = btn.textContent;
+      btn.textContent = "Copied!";
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    });
     document.getElementById("step2").style.display = "block";
     status.textContent = "";
   } catch (err) {
