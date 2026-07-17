@@ -77,15 +77,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def nearest_station(lat, lon, stations):
-    best, best_dist = None, None
+def nearest_stations_list(lat, lon, stations, n=8):
+    ranked = []
     for s in stations:
         if s.get("latitude") is None or s.get("longitude") is None:
             continue
+        if s.get("catchment-area") is None:
+            continue
         d = haversine_km(lat, lon, s["latitude"], s["longitude"])
-        if best_dist is None or d < best_dist:
-            best, best_dist = s, d
-    return best, best_dist
+        ranked.append((d, s))
+    ranked.sort(key=lambda x: x[0])
+    return ranked[:n]
 
 
 # ---------- WGS84 -> OSGB36 ----------
@@ -200,23 +202,26 @@ def api_lookup():
     lat, lon = parsed
 
     stations = fetch_stations()
-    station, dist_km = nearest_station(lat, lon, stations)
-    if station is None or station.get("catchment-area") is None:
-        return jsonify({"error": "No usable nearest station found."}), 400
+    candidates = nearest_stations_list(lat, lon, stations, n=8)
+    if not candidates:
+        return jsonify({"error": "No usable stations found."}), 400
 
     easting, northing = wgs84_to_osgb36_gridref(lat, lon)
 
     return jsonify({
         "lat": lat, "lon": lon,
         "easting": round(easting), "northing": round(northing),
-        "station": {
-            "id": station["id"],
-            "name": station["name"],
-            "river": station.get("river"),
-            "catchment_area": station.get("catchment-area"),
-            "distance_km": round(dist_km, 1),
-            "url": f"https://nrfa.ceh.ac.uk/data/station/info/{station['id']}",
-        },
+        "candidates": [
+            {
+                "id": s["id"],
+                "name": s["name"],
+                "river": s.get("river"),
+                "catchment_area": s.get("catchment-area"),
+                "distance_km": round(d, 1),
+                "url": f"https://nrfa.ceh.ac.uk/data/station/info/{s['id']}",
+            }
+            for d, s in candidates
+        ],
     })
 
 
