@@ -59,6 +59,7 @@
 
 <script>
 let currentStation = null;
+let currentLookup = null;
 
 document.getElementById("lookupBtn").addEventListener("click", async () => {
   const status = document.getElementById("status1");
@@ -75,19 +76,37 @@ document.getElementById("lookupBtn").addEventListener("click", async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Lookup failed.");
 
-    currentStation = data;
-    const s = data.station;
+    currentLookup = data;
     document.getElementById("stationCard").style.display = "block";
-    document.getElementById("stationCard").innerHTML = `
-      <div><b>Nearest station:</b> ${s.name} (${s.river || "-"}), ${s.distance_km} km away
-      &mdash; <a href="${s.url}" target="_blank">station ${s.id}</a></div>
-      <div><b>Station catchment area:</b> ${s.catchment_area} km2</div>
-      <div style="margin-top: 6px;">
-        <b>FEH grid reference:</b> ${data.easting} ${data.northing}
+
+    let candidatesHtml = `
+      <div><b>FEH grid reference:</b> ${data.easting} ${data.northing}
         <button class="secondary" id="copyGridRefBtn" style="margin-top: 0; padding: 4px 10px; font-size: 13px;">Copy coordinates for FEH site</button>
         <a href="https://fehweb.ceh.ac.uk/Map" target="_blank" style="margin-left: 8px; font-size: 13px;">Open FEH site &rarr;</a>
       </div>
+      <div style="margin-top: 14px;"><b>Pick the station on the correct river:</b></div>
+      <div style="margin-top: 8px;">
     `;
+    data.candidates.forEach((c, i) => {
+      candidatesHtml += `
+        <label style="display: flex; align-items: center; gap: 8px; padding: 6px 0; cursor: pointer; border-bottom: 1px solid #eee;">
+          <input type="radio" name="stationChoice" value="${i}" ${i === 0 ? "checked" : ""}>
+          <span><b>${c.name}</b> &mdash; ${c.river || "unknown river"} &mdash; ${c.distance_km} km away &mdash; ${c.catchment_area} km2
+          &mdash; <a href="${c.url}" target="_blank" onclick="event.stopPropagation()">station ${c.id}</a></span>
+        </label>
+      `;
+    });
+    candidatesHtml += `</div>`;
+
+    document.getElementById("stationCard").innerHTML = candidatesHtml;
+    currentStation = { station: data.candidates[0] };
+
+    document.querySelectorAll('input[name="stationChoice"]').forEach(radio => {
+      radio.addEventListener("change", (e) => {
+        currentStation = { station: currentLookup.candidates[parseInt(e.target.value)] };
+      });
+    });
+
     document.getElementById("copyGridRefBtn").addEventListener("click", () => {
       navigator.clipboard.writeText(`${data.easting} ${data.northing}`);
       const btn = document.getElementById("copyGridRefBtn");
